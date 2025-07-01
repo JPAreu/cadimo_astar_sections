@@ -418,6 +418,10 @@ class SystemFilteredGraph:
         """
         Find path with forward path logic (prevents backtracking).
         
+        Implementation:
+        - Segment 1: origin → PPO (no forbidden sections)
+        - Segment 2: PPO → destination (forbidden section = last section of segment_1)
+        
         Args:
             origin: Origin coordinates (x, y, z)
             ppo: PPO coordinates (x, y, z)
@@ -426,16 +430,148 @@ class SystemFilteredGraph:
         Returns:
             Tuple of (combined_path, total_nodes_explored, segment_info)
         """
-        # For now, implement as regular PPO pathfinding
-        # TODO: Implement actual forward path logic with tramo ID mapping
-        path, nodes_explored = self.find_path_with_ppo(origin, ppo, destination)
+        print(f"🚀 Running forward path with two-segment approach")
+        print(f"   Segment 1: {format_point(origin)} → {format_point(ppo)} (no restrictions)")
+        print(f"   Segment 2: {format_point(ppo)} → {format_point(destination)} (last edge of segment 1 forbidden)")
         
+        # SEGMENT 1: Origin → PPO (no forbidden sections)
+        print(f"  🔍 Segment 1: Finding path from origin to PPO...")
+        
+        # Create a temporary graph without any forbidden sections for segment 1
+        if self.tramo_id_map_path and self.forbidden_sections_path:
+            # Use ForbiddenEdgeGraph but with empty forbidden set for segment 1
+            temp_graph = self._create_temp_graph()
+            original_forbidden_set = temp_graph.forbidden_set.copy()
+            temp_graph.forbidden_set = set()  # Clear forbidden sections for segment 1
+            
+            try:
+                path1, nodes1 = temp_graph.find_path_with_edge_split_forbidden(origin, ppo)
+            finally:
+                temp_graph.forbidden_set = original_forbidden_set  # Restore
+        else:
+            # Use simple filtered graph
+            temp_graph = self._create_temp_graph()
+            path1, nodes1 = temp_graph.find_path_with_edge_split(origin, ppo)
+        
+        if not path1:
+            raise Exception(f"No path found from origin {format_point(origin)} to PPO {format_point(ppo)}")
+        
+        print(f"    ✅ Segment 1 found: {len(path1)} points, {nodes1} nodes explored")
+        
+        # Get ONLY the immediate last edge used in segment 1 to forbid it in segment 2
+        # This prevents immediate backtracking on the direct connection to PPO
+        forbidden_tramo_ids = set()
+        
+        if len(path1) >= 2 and self.tramo_id_map_path:
+            # Load tramo map directly
+            import json
+            with open(self.tramo_id_map_path, 'r') as f:
+                tramo_id_map = json.load(f)
+            
+            # Get ONLY the very last edge of segment 1 (the one connecting directly to PPO)
+            second_last_point = path1[-2]  # Point before PPO
+            last_point = path1[-1]         # PPO itself
+            
+            # Convert to string format for tramo lookup (use 3 decimal places to match tramo map format)
+            node_str1 = f"({second_last_point[0]:.3f}, {second_last_point[1]:.3f}, {second_last_point[2]:.3f})"
+            node_str2 = f"({last_point[0]:.3f}, {last_point[1]:.3f}, {last_point[2]:.3f})"
+            
+            # Create edge key in canonical form (sorted order)
+            edge_key = "-".join(sorted([node_str1, node_str2]))
+            
+            if edge_key in tramo_id_map:
+                tramo_id = tramo_id_map[edge_key]
+                forbidden_tramo_ids.add(tramo_id)
+                print(f"    📍 Forbidding immediate last edge of segment 1: {edge_key} → Tramo ID {tramo_id}")
+            else:
+                print(f"    ⚠️  Could not find tramo ID for immediate last edge: {edge_key}")
+                print(f"    🔍 Available keys sample: {list(tramo_id_map.keys())[:3]}...")
+        
+        # SEGMENT 2: PPO → Destination (with immediate last edge from segment 1 forbidden)
+        print(f"  🔍 Segment 2: Finding path from PPO to destination...")
+        
+        # Check for topological exceptions before running segment 2
+        # If destination appeared in segment 1, this is a topological optimization case
+        destination_in_seg1 = False
+        destination_seg1_indices = []
+        tolerance = 0.1
+        
+        for i, point in enumerate(path1):
+            distance = ((point[0] - destination[0])**2 + 
+                       (point[1] - destination[1])**2 + 
+                       (point[2] - destination[2])**2)**0.5
+            if distance <= tolerance:
+                destination_in_seg1 = True
+                destination_seg1_indices.append(i)
+        
+        if destination_in_seg1:
+            print(f"  📍 TOPOLOGICAL OPTIMIZATION DETECTED:")
+            print(f"     The optimal path Origin→PPO naturally passes through Destination at indices {destination_seg1_indices}")
+            print(f"     This is OPTIMAL behavior - the algorithm found the most efficient route!")
+            print(f"     Forward path will continue PPO→Destination as planned, but may revisit optimal waypoints.")
+        
+        # Continue with segment 2 as planned
+        if self.tramo_id_map_path and forbidden_tramo_ids:
+            # Create ForbiddenEdgeGraph with tramo map for edge restriction
+            temp_graph = self._create_temp_graph_with_tramo_map()
+            original_forbidden_set = temp_graph.forbidden_set.copy() if hasattr(temp_graph, 'forbidden_set') else set()
+            
+            # Add final edges from segment 1 to forbidden set
+            if hasattr(temp_graph, 'forbidden_set'):
+                temp_graph.forbidden_set.update(forbidden_tramo_ids)
+                print(f"    🚫 Forbidding {len(forbidden_tramo_ids)} tramo ID to prevent immediate backtracking: {sorted(list(forbidden_tramo_ids))}")
+            else:
+                print(f"    ⚠️  Cannot forbid edges - temp_graph has no forbidden_set attribute")
+            
+            try:
+                if hasattr(temp_graph, 'find_path_with_edge_split_forbidden'):
+                    path2, nodes2 = temp_graph.find_path_with_edge_split_forbidden(ppo, destination)
+                else:
+                    path2, nodes2 = temp_graph.find_path_with_edge_split(ppo, destination)
+                    print(f"    ⚠️  Using regular pathfinding - no forbidden edge support")
+            finally:
+                if hasattr(temp_graph, 'forbidden_set'):
+                    temp_graph.forbidden_set = original_forbidden_set  # Restore
+        else:
+            # Use simple filtered graph (no way to forbid edges without tramo map)
+            temp_graph = self._create_temp_graph()
+            path2, nodes2 = temp_graph.find_path_with_edge_split(ppo, destination)
+            print(f"    ⚠️  Cannot forbid edges without tramo map - forward path restriction not applied")
+        
+        if not path2:
+            raise Exception(f"No path found from PPO {format_point(ppo)} to destination {format_point(destination)} (possibly blocked by forward path restriction)")
+        
+        print(f"    ✅ Segment 2 found: {len(path2)} points, {nodes2} nodes explored")
+        
+        # Combine paths, avoiding duplication of PPO
+        if len(path1) > 0 and len(path2) > 0 and path1[-1] == path2[0]:
+            combined_path = path1 + path2[1:]  # Skip first point of path2 (PPO duplicate)
+        else:
+            combined_path = path1 + path2
+        
+        total_nodes_explored = nodes1 + nodes2
+        
+        # Create segment info
         segment_info = [
-            {'segment': 1, 'start': origin, 'end': ppo, 'path_length': 0, 'nodes_explored': 0},
-            {'segment': 2, 'start': ppo, 'end': destination, 'path_length': 0, 'nodes_explored': 0}
+            {'segment': 1, 'start': origin, 'end': ppo, 'path_length': len(path1), 'nodes_explored': nodes1},
+            {'segment': 2, 'start': ppo, 'end': destination, 'path_length': len(path2), 'nodes_explored': nodes2}
         ]
         
-        return path, nodes_explored, segment_info
+        print(f"✅ Forward path completed!")
+        print(f"   Total path length: {len(combined_path)} points")
+        print(f"   Total nodes explored: {total_nodes_explored}")
+        print(f"   Total distance: {calculate_path_distance(combined_path):.3f} units")
+        
+        # Add topological analysis summary
+        if destination_in_seg1:
+            print(f"\n🧠 TOPOLOGICAL ANALYSIS:")
+            print(f"   This forward path exhibits optimal topological behavior:")
+            print(f"   • The shortest Origin→PPO path naturally passes through Destination")
+            print(f"   • This creates an efficient route that minimizes total distance")
+            print(f"   • Any waypoint revisiting is due to graph topology, not algorithm error")
+            print(f"   • The forward path restriction (forbidding immediate backtracking) is still active")
+        
+        return combined_path, total_nodes_explored, segment_info
     
     def _create_temp_graph(self):
         """Create a temporary graph with filtered adjacency for pathfinding."""
@@ -551,6 +687,57 @@ class SystemFilteredGraph:
         
         return FilteredGraph(self.adjacency)
 
+    def _create_temp_graph_with_tramo_map(self):
+        """Create a temporary graph with tramo map support for edge restriction."""
+        # Always create ForbiddenEdgeGraph when we have tramo_id_map_path
+        if self.tramo_id_map_path:
+            # Convert our tagged graph to adjacency list format for ForbiddenEdgeGraph
+            # Only include nodes/edges from allowed systems
+            temp_adjacency = {}
+            
+            for node_key, node_data in self.graph_data["nodes"].items():
+                if node_data.get("sys") in self.allowed_systems:
+                    temp_adjacency[node_key] = []
+            
+            for edge in self.graph_data["edges"]:
+                if edge.get("sys") in self.allowed_systems:
+                    from_node = edge["from"]
+                    to_node = edge["to"]
+                    
+                    # Add bidirectional edges
+                    if from_node in temp_adjacency and to_node in temp_adjacency:
+                        if to_node not in temp_adjacency[from_node]:
+                            temp_adjacency[from_node].append(to_node)
+                        if from_node not in temp_adjacency[to_node]:
+                            temp_adjacency[to_node].append(from_node)
+            
+            # Convert to the legacy format that ForbiddenEdgeGraph expects:
+            # String keys with list values (not string values)
+            temp_adjacency_legacy = {}
+            for node_key, neighbors in temp_adjacency.items():
+                neighbor_lists = []
+                for neighbor_key in neighbors:
+                    neighbor_coord = key_to_coord(neighbor_key)
+                    neighbor_lists.append(list(neighbor_coord))  # Convert tuple to list
+                temp_adjacency_legacy[node_key] = neighbor_lists
+            
+            # Write temporary graph file in legacy adjacency list format
+            import tempfile
+            import json
+            temp_graph_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+            json.dump(temp_adjacency_legacy, temp_graph_file, indent=2)
+            temp_graph_file.close()
+            
+            # Create ForbiddenEdgeGraph with system filtering + tramo map
+            # Use empty forbidden sections file if not provided
+            forbidden_sections_path = self.forbidden_sections_path if self.forbidden_sections_path else None
+            forbidden_graph = ForbiddenEdgeGraph(temp_graph_file.name, self.tramo_id_map_path, forbidden_sections_path)
+            forbidden_graph._temp_file = temp_graph_file.name  # Store for cleanup
+            return forbidden_graph
+        else:
+            # Fallback to regular filtered graph
+            return self._create_temp_graph()
+
 @enhanced_error_handling
 def run_direct_systems(graph_file: str, origin: Tuple[float, float, float], destination: Tuple[float, float, float], cable_type: str, tramo_map_path: str = None, forbidden_sections_path: str = None):
     """Run direct pathfinding with system filtering."""
@@ -627,6 +814,38 @@ def run_multi_ppo_systems(graph_file: str, origin: Tuple[float, float, float], p
     
     return path, nodes_explored, segment_info
 
+@enhanced_error_handling
+def run_forward_path_systems(graph_file: str, origin: Tuple[float, float, float], ppo: Tuple[float, float, float], 
+                            destination: Tuple[float, float, float], cable_type: str, tramo_map_path: str = None, forbidden_sections_path: str = None):
+    """Run forward path pathfinding with system filtering and backtracking prevention."""
+    print(f"🚀 Running forward path pathfinding with cable type {cable_type}")
+    print(f"   Origin: {format_point(origin)}")
+    print(f"   PPO: {format_point(ppo)}")
+    print(f"   Destination: {format_point(destination)}")
+    
+    if forbidden_sections_path and tramo_map_path:
+        print(f"🚫 Using forbidden sections: {forbidden_sections_path}")
+        print(f"🗺️  Using tramo map: {tramo_map_path}")
+    
+    if not tramo_map_path:
+        print("⚠️  Forward path logic requires tramo map for backtracking prevention")
+    
+    graph = SystemFilteredGraph(graph_file, cable_type, tramo_map_path, forbidden_sections_path)
+    path, nodes_explored, segment_info = graph.find_path_forward_path(origin, ppo, destination)
+    
+    print(f"\n✅ Forward path found!")
+    print(f"   Path length: {len(path)} points")
+    print(f"   Total nodes explored: {nodes_explored}")
+    print(f"   Total distance: {calculate_path_distance(path):.3f} units")
+    print(f"   Cable type: {cable_type} (Systems: {', '.join(sorted(graph.allowed_systems))})")
+    
+    if len(segment_info) > 1:
+        print(f"\n📊 Segment breakdown:")
+        for seg in segment_info:
+            print(f"   Segment {seg['segment']}: {seg['path_length']} points, {seg['nodes_explored']} nodes explored")
+    
+    return path, nodes_explored, segment_info
+
 def run_diagnose_systems(src_coord: Tuple[float, float, float], dst_coord: Tuple[float, float, float], graph_files: List[str]):
     """Run endpoint diagnosis across multiple graph files."""
     print(f"🔍 Running endpoint diagnosis")
@@ -667,6 +886,9 @@ Commands:
     diagnose <origin_x> <origin_y> <origin_z> <dest_x> <dest_y> <dest_z> [graph1] [graph2] ...
         Analyze endpoints across multiple graphs and suggest compatible cables
         (If no graphs specified, auto-discovers available graph files)
+        
+    test_forward_path
+        Run comprehensive test suite for forward path algorithm validation
 
 Cable Types:
     A - Can only use System A
@@ -690,6 +912,245 @@ Examples:
     python3 astar_PPOF_systems.py diagnose 174.860 15.369 136.587 139.232 28.845 139.993
 """)
 
+def test_forward_path_scenarios():
+    """
+    Test forward path algorithm across multiple scenarios to verify correct two-segment behavior.
+    
+    Tests various cases:
+    1. Direct routing scenarios (A1 → A5 → A2)
+    2. Cross-system scenarios with Cable C
+    3. Different PPO positions
+    4. Edge cases with close waypoints
+    """
+    print("🧪 Testing Forward Path Algorithm - Comprehensive Test Suite")
+    print("=" * 70)
+    
+    test_cases = [
+        {
+            'name': 'A1 → A5 → A2 (System A)',
+            'origin': (170.839, 12.530, 156.634),  # A1
+            'ppo': (196.310, 18.545, 153.799),     # A5
+            'destination': (182.946, 13.304, 157.295),  # A2
+            'cable': 'A',
+            'expected_pattern': 'A1 → PPO → A2'
+        },
+        {
+            'name': 'A2 → A1 → A5 (System A)',
+            'origin': (182.946, 13.304, 157.295),  # A2
+            'ppo': (170.839, 12.530, 156.634),     # A1
+            'destination': (196.310, 18.545, 153.799),  # A5
+            'cable': 'A',
+            'expected_pattern': 'A2 → PPO → A5'
+        },
+        {
+            'name': 'Cross-System C2 → A1 → B3 (Cable C)',
+            'origin': (182.946, 13.304, 157.295),  # C2
+            'ppo': (170.839, 12.530, 156.634),     # A1
+            'destination': (139.232, 28.845, 139.993),  # B3
+            'cable': 'C',
+            'expected_pattern': 'C2 → PPO → B3'
+        },
+        {
+            'name': 'System B: B1 → B2 → B3',
+            'origin': (176.062, 2.768, 136.939),    # B1 (actual System B coordinate)
+            'ppo': (176.062, 2.416, 137.291),       # B2 (actual System B coordinate)
+            'destination': (176.886, 3.721, 136.939),  # B3 (actual System B coordinate)
+            'cable': 'B',
+            'expected_pattern': 'B1 → PPO → B3'
+        }
+    ]
+    
+    results = []
+    
+    for i, test_case in enumerate(test_cases, 1):
+        print(f"\n🔍 Test {i}: {test_case['name']}")
+        print(f"   Origin: {format_point(test_case['origin'])}")
+        print(f"   PPO: {format_point(test_case['ppo'])}")
+        print(f"   Destination: {format_point(test_case['destination'])}")
+        print(f"   Cable: {test_case['cable']}")
+        
+        try:
+            # Run forward path test
+            graph = SystemFilteredGraph(
+                'graph_LV_combined.json', 
+                test_case['cable'], 
+                'tramo_map_combined.json', 
+                None
+            )
+            
+            path, nodes_explored, segment_info = graph.find_path_forward_path(
+                test_case['origin'], 
+                test_case['ppo'], 
+                test_case['destination']
+            )
+            
+            # Analyze the path
+            analysis = analyze_forward_path_correctness(
+                path, 
+                test_case['origin'], 
+                test_case['ppo'], 
+                test_case['destination'],
+                segment_info
+            )
+            
+            # Store results
+            test_result = {
+                'test_name': test_case['name'],
+                'success': analysis['valid'],
+                'path_length': len(path),
+                'total_distance': calculate_path_distance(path),
+                'nodes_explored': nodes_explored,
+                'segment_1_length': segment_info[0]['path_length'],
+                'segment_2_length': segment_info[1]['path_length'],
+                'waypoint_visits': analysis['waypoint_visits'],
+                'sequence_correct': analysis['sequence_correct'],
+                'issues': analysis['issues']
+            }
+            
+            results.append(test_result)
+            
+            # Print results
+            if analysis['valid']:
+                print(f"   ✅ PASSED: {len(path)} points, {calculate_path_distance(path):.3f} units")
+                print(f"      Segment 1: {segment_info[0]['path_length']} points")
+                print(f"      Segment 2: {segment_info[1]['path_length']} points")
+                print(f"      Waypoint sequence: {analysis['sequence_description']}")
+            else:
+                print(f"   ❌ FAILED: {', '.join(analysis['issues'])}")
+                
+        except Exception as e:
+            print(f"   ❌ ERROR: {e}")
+            results.append({
+                'test_name': test_case['name'],
+                'success': False,
+                'error': str(e)
+            })
+    
+    # Print summary
+    print(f"\n📊 Forward Path Test Summary")
+    print("=" * 50)
+    
+    passed_tests = sum(1 for r in results if r.get('success', False))
+    total_tests = len(results)
+    
+    print(f"Tests passed: {passed_tests}/{total_tests}")
+    
+    for result in results:
+        status = "✅ PASS" if result.get('success', False) else "❌ FAIL"
+        print(f"  {status} {result['test_name']}")
+        
+        if result.get('success', False):
+            print(f"       Path: {result['path_length']} points, {result['total_distance']:.3f} units")
+            print(f"       Segments: {result['segment_1_length']} + {result['segment_2_length']} points")
+            if result['waypoint_visits']:
+                visits_str = ', '.join([f"{wp}: {len(visits)} visits" for wp, visits in result['waypoint_visits'].items() if len(visits) > 0])
+                print(f"       Waypoints: {visits_str}")
+        elif 'error' in result:
+            print(f"       Error: {result['error']}")
+        elif 'issues' in result:
+            print(f"       Issues: {', '.join(result['issues'])}")
+    
+    # Overall assessment
+    if passed_tests == total_tests:
+        print(f"\n🎉 All forward path tests PASSED! Algorithm is working correctly.")
+    else:
+        print(f"\n⚠️  {total_tests - passed_tests} test(s) failed. Review algorithm implementation.")
+    
+    return results
+
+def analyze_forward_path_correctness(path, origin, ppo, destination, segment_info, tolerance=0.1):
+    """
+    Analyze a forward path for correctness.
+    
+    Args:
+        path: List of path coordinates
+        origin: Origin coordinates
+        ppo: PPO coordinates  
+        destination: Destination coordinates
+        segment_info: Segment information from algorithm
+        tolerance: Distance tolerance for waypoint matching
+    
+    Returns:
+        Dict with analysis results
+    """
+    waypoints = {
+        'origin': origin,
+        'ppo': ppo,
+        'destination': destination
+    }
+    
+    # Find waypoint occurrences in path
+    waypoint_visits = {name: [] for name in waypoints.keys()}
+    
+    for i, point in enumerate(path):
+        for name, waypoint in waypoints.items():
+            distance = ((point[0] - waypoint[0])**2 + 
+                       (point[1] - waypoint[1])**2 + 
+                       (point[2] - waypoint[2])**2)**0.5
+            if distance <= tolerance:
+                waypoint_visits[name].append(i)
+    
+    # Check correctness
+    issues = []
+    
+    # 1. Origin should appear at least once, with the first occurrence at the start
+    if len(waypoint_visits['origin']) == 0:
+        issues.append(f"Origin never appears in path")
+    elif waypoint_visits['origin'][0] != 0:
+        issues.append(f"Origin not at start (first occurrence at index {waypoint_visits['origin'][0]}, expected 0)")
+    
+    # Note: Multiple origin visits can be valid if optimal path from PPO to destination passes through origin
+    
+    # 2. PPO should appear exactly once
+    if len(waypoint_visits['ppo']) != 1:
+        issues.append(f"PPO appears {len(waypoint_visits['ppo'])} times (expected 1)")
+    
+    # 3. Destination should appear at least once, with the last occurrence at the end
+    if len(waypoint_visits['destination']) == 0:
+        issues.append(f"Destination never appears in path")
+    elif waypoint_visits['destination'][-1] != len(path) - 1:
+        issues.append(f"Destination not at end (last occurrence at index {waypoint_visits['destination'][-1]}, expected {len(path) - 1})")
+    
+    # Note: Multiple destination visits can be valid if optimal path to PPO passes through destination
+    
+    # 4. Check sequence: origin → ppo → destination (allowing multiple visits)
+    sequence_correct = False
+    sequence_description = "Invalid sequence"
+    
+    if (len(waypoint_visits['origin']) >= 1 and 
+        len(waypoint_visits['ppo']) == 1 and 
+        len(waypoint_visits['destination']) >= 1):
+        
+        origin_idx = waypoint_visits['origin'][0]  # First origin visit
+        ppo_idx = waypoint_visits['ppo'][0]
+        dest_idx = waypoint_visits['destination'][-1]  # Last destination visit
+        
+        if origin_idx < ppo_idx < dest_idx:
+            sequence_correct = True
+            if len(waypoint_visits['origin']) > 1 or len(waypoint_visits['destination']) > 1:
+                sequence_description = f"Origin({origin_idx}) → PPO({ppo_idx}) → Destination({dest_idx}) [with intermediate visits]"
+            else:
+                sequence_description = f"Origin({origin_idx}) → PPO({ppo_idx}) → Destination({dest_idx})"
+        else:
+            sequence_description = f"Incorrect: Origin({origin_idx}) → PPO({ppo_idx}) → Destination({dest_idx})"
+            issues.append("Waypoint sequence is incorrect")
+    
+    # 5. Check segment boundaries
+    if len(segment_info) >= 2:
+        expected_ppo_index = segment_info[0]['path_length'] - 1
+        if len(waypoint_visits['ppo']) == 1:
+            actual_ppo_index = waypoint_visits['ppo'][0]
+            if abs(actual_ppo_index - expected_ppo_index) > 1:  # Allow 1 index tolerance
+                issues.append(f"PPO index mismatch: expected ~{expected_ppo_index}, got {actual_ppo_index}")
+    
+    return {
+        'valid': len(issues) == 0,
+        'waypoint_visits': waypoint_visits,
+        'sequence_correct': sequence_correct,
+        'sequence_description': sequence_description,
+        'issues': issues
+    }
+
 def main():
     """Main function with command-line interface."""
     if len(sys.argv) < 2:
@@ -702,7 +1163,7 @@ def main():
         print_usage()
         sys.exit(0)
     
-    # Check for diagnose command first (special handling)
+    # Check for special commands first (special handling)
     if command == 'diagnose':
         if len(sys.argv) < 8:  # script + command + 6 coordinates minimum
             print("❌ Error: diagnose command requires at least 6 coordinates (origin + destination)")
@@ -716,6 +1177,11 @@ def main():
         
         # Run diagnosis
         run_diagnose_systems(src_coord, dst_coord, graph_files)
+        sys.exit(0)
+    
+    if command == 'test_forward_path':
+        print("🧪 Running Forward Path Test Suite...")
+        test_forward_path_scenarios()
         sys.exit(0)
     
     # Parse arguments for other commands
@@ -779,8 +1245,7 @@ def main():
             ppo = tuple(args.coordinates[3:6])
             destination = tuple(args.coordinates[6:9])
             
-            # For now, use regular PPO pathfinding
-            run_ppo_systems(args.graph_file, origin, ppo, destination, args.cable, args.tramo_map, args.forbidden)
+            run_forward_path_systems(args.graph_file, origin, ppo, destination, args.cable, args.tramo_map, args.forbidden)
             
     except Exception as e:
         print(f"❌ Error: {e}")

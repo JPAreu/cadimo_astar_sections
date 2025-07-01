@@ -1,0 +1,46 @@
+{
+  "best_edge": [
+    [
+      180.839,
+      22.53,
+      166.634
+    ],
+    [
+      180.839,
+      25.145,
+      166.634
+    ]
+  ],
+  "projection": [
+    180.839,
+    22.53,
+    166.634
+  ],
+  "euclidean": 0.0,
+  "best_manhattan_path": {
+    "order": "",
+    "points": [
+      [
+        180.839,
+        22.53,
+        166.634
+      ]
+    ],
+    "manhattan": 0.0
+  },
+  "all_paths": [
+    {
+      "order": "",
+      "points": [
+        [
+          180.839,
+          22.53,
+          166.634
+        ]
+      ],
+      "manhattan": 0.0
+    }
+  ],
+  "system_filter": "C",
+  "total_edges_considered": 510
+}
