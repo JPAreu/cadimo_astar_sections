@@ -1,0 +1,77 @@
+{
+  "scenario": "C3",
+  "title": "PPO Impact Analysis - Adding C4 to C1\u2192C3 Route",
+  "timestamp": "20250701_112425",
+  "coordinates": {
+    "origin": {
+      "point": "C1",
+      "coord": [
+        176.553,
+        6.028,
+        150.34
+      ],
+      "system": "B"
+    },
+    "ppo": {
+      "point": "C4",
+      "coord": [
+        169.378,
+        5.669,
+        140.678
+      ],
+      "system": "B"
+    },
+    "destination": {
+      "point": "C3",
+      "coord": [
+        174.86,
+        15.369,
+        136.587
+      ],
+      "system": "B"
+    }
+  },
+  "cable_type": "C",
+  "routing_analysis": {
+    "type": "Intra-System (System B)",
+    "complexity": "LOW",
+    "systems_involved": [
+      "B"
+    ],
+    "system_transitions": 0
+  },
+  "ppo_path": {
+    "points": 75,
+    "nodes_explored": 129,
+    "distance": 72.493,
+    "direct_distance": 16.711,
+    "efficiency": 23.1,
+    "ppo_position": {
+      "index": 29,
+      "percentage": 40.0
+    }
+  },
+  "elevation_profile": {
+    "origin_elevation": 150.34,
+    "ppo_elevation": 140.678,
+    "destination_elevation": 136.587,
+    "changes": {
+      "origin_to_ppo": -9.662,
+      "ppo_to_destination": -4.091,
+      "total": -13.753
+    }
+  },
+  "comparison": {
+    "direct_path": {
+      "points": 35,
+      "nodes_explored": 72,
+      "distance": 38.285
+    },
+    "ppo_vs_direct": {
+      "path_increase_percent": 114.3,
+      "distance_increase_percent": 89.4,
+      "nodes_increase_percent": 79.2,
+      "impact_level": "HIGH"
+    }
+  }
+}

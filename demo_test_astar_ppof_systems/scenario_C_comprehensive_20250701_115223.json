@@ -1,0 +1,143 @@
+{
+  "timestamp": "20250701_115223",
+  "configuration": {
+    "cable_type": "C",
+    "graph_file": "graph_LV_combined.json",
+    "tramo_map_file": "tramo_map_combined.json"
+  },
+  "scenarios": [
+    {
+      "scenario": "C1",
+      "success": true,
+      "coordinates": {
+        "origin": [
+          176.553,
+          6.028,
+          150.34
+        ],
+        "destination": [
+          182.946,
+          13.304,
+          157.295
+        ]
+      },
+      "routing_type": "cross_system",
+      "systems": "B_to_A",
+      "path_points": 29,
+      "nodes_explored": 41,
+      "path_distance": 30.066293271205836,
+      "direct_distance": 11.92403664871925,
+      "efficiency": 39.65915100062824,
+      "overhead": 18.142256622486585,
+      "overhead_percentage": 152.14861507856259,
+      "elevation_change": 6.954999999999984,
+      "backtracking": {
+        "has_backtracking": false,
+        "revisits": 0,
+        "retraversals": 0,
+        "unique_coordinates": 29,
+        "unique_segments": 28
+      },
+      "execution_time": 0.0002779960632324219
+    },
+    {
+      "scenario": "C2",
+      "success": true,
+      "coordinates": {
+        "origin": [
+          176.553,
+          6.028,
+          150.34
+        ],
+        "destination": [
+          174.86,
+          15.369,
+          136.587
+        ]
+      },
+      "routing_type": "intra_system",
+      "systems": "B_to_B",
+      "path_points": 35,
+      "nodes_explored": 72,
+      "path_distance": 38.28466231513372,
+      "direct_distance": 16.711239900139077,
+      "efficiency": 43.6499602963279,
+      "overhead": 21.573422414994646,
+      "overhead_percentage": 129.0952828390376,
+      "elevation_change": -13.753000000000014,
+      "backtracking": {
+        "has_backtracking": false,
+        "revisits": 0,
+        "retraversals": 0,
+        "unique_coordinates": 35,
+        "unique_segments": 34
+      },
+      "execution_time": 0.0004138946533203125
+    },
+    {
+      "scenario": "C3",
+      "success": true,
+      "coordinates": {
+        "origin": [
+          176.553,
+          6.028,
+          150.34
+        ],
+        "ppo": [
+          169.378,
+          5.669,
+          140.678
+        ],
+        "destination": [
+          174.86,
+          15.369,
+          136.587
+        ]
+      },
+      "routing_type": "intra_system_ppo",
+      "systems": "B_to_B_via_B",
+      "path_points": 75,
+      "nodes_explored": 129,
+      "ppo_index": 29,
+      "ppo_position_percentage": 39.189189189189186,
+      "path_distance": 72.49278926571434,
+      "direct_distance": 16.711239900139077,
+      "total_direct_distance": 23.909318620095767,
+      "efficiency": 23.052278812015174,
+      "ppo_efficiency": 32.981650812826075,
+      "overhead": 55.78154936557526,
+      "overhead_percentage": 333.7965925862331,
+      "elevation_change": -13.753000000000014,
+      "ppo_elevation_change": -9.662000000000006,
+      "segment1": {
+        "path_points": 30,
+        "path_distance": 34.66696352840519,
+        "direct_distance": 12.040089285383239,
+        "efficiency": 34.73072937443139,
+        "overhead": 22.626874243021952,
+        "overhead_percentage": 187.92945556052604
+      },
+      "segment2": {
+        "path_points": 46,
+        "path_distance": 37.82582573730917,
+        "direct_distance": 11.869229334712527,
+        "efficiency": 31.37863907358252,
+        "overhead": 25.956596402596638,
+        "overhead_percentage": 218.68813610909393
+      },
+      "backtracking": {
+        "has_backtracking": true,
+        "revisits": 20,
+        "retraversals": 20,
+        "unique_coordinates": 55,
+        "unique_segments": 54
+      },
+      "execution_time": 0.0007140636444091797
+    }
+  ],
+  "summary": {
+    "total_scenarios": 3,
+    "successful_scenarios": 3,
+    "scenarios_with_backtracking": 1
+  }
+}

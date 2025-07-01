@@ -1,0 +1,62 @@
+{
+  "scenario": "C3_backtracking_analysis",
+  "coordinates": {
+    "origin": [
+      176.553,
+      6.028,
+      150.34
+    ],
+    "ppo": [
+      169.378,
+      5.669,
+      140.678
+    ],
+    "destination": [
+      174.86,
+      15.369,
+      136.587
+    ]
+  },
+  "path_length": 75,
+  "repeated_coordinates": {
+    "total_unique_coordinates": 55,
+    "total_path_points": 75,
+    "repetition_count": 20,
+    "total_revisits": 20
+  },
+  "repeated_segments": {
+    "total_unique_segments": 54,
+    "total_path_segments": 74,
+    "repetition_count": 20,
+    "total_retraversals": 20
+  },
+  "backtracking_patterns": {
+    "backtrack_count": 1,
+    "direction_changes": 3,
+    "total_backtrack_distance": 1.6980000000000004
+  },
+  "segment_efficiency": {
+    "ppo_index": 29,
+    "segment1": {
+      "path_distance": 34.66696352840519,
+      "direct_distance": 12.040089285383239,
+      "efficiency": 34.73072937443139,
+      "points": 30,
+      "overhead": 22.626874243021952
+    },
+    "segment2": {
+      "path_distance": 37.82582573730917,
+      "direct_distance": 11.869229334712527,
+      "efficiency": 31.37863907358252,
+      "points": 46,
+      "overhead": 25.956596402596638
+    },
+    "overall": {
+      "total_path_distance": 72.49278926571435,
+      "total_direct_distance": 23.909318620095767,
+      "efficiency": 32.98165081282607
+    }
+  },
+  "has_backtracking": true,
+  "efficiency_rating": "POOR"
+}
