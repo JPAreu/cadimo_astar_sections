@@ -107,9 +107,9 @@ class ForbiddenEdgeGraph(OptimizedSpatialGraph3D):
             # Filter out forbidden edges
             filtered_neighbors = []
             for neighbor in original_neighbors:
-                # Convert nodes to strings for forbidden edge checking
-                node_str = f"({node[0]}, {node[1]}, {node[2]})"
-                neighbor_str = f"({neighbor[0]}, {neighbor[1]}, {neighbor[2]})"
+                # Convert nodes to strings for forbidden edge checking (use 3 decimal places to match tramo map format)
+                node_str = f"({node[0]:.3f}, {node[1]:.3f}, {node[2]:.3f})"
+                neighbor_str = f"({neighbor[0]:.3f}, {neighbor[1]:.3f}, {neighbor[2]:.3f})"
                 
                 if not self.is_edge_forbidden(node_str, neighbor_str):
                     filtered_neighbors.append(neighbor)
@@ -173,9 +173,9 @@ def run_astar_with_ppo_forward_path(graph_path, origin, ppo, destination, tramo_
         second_last_point = path1[-2]
         last_point = path1[-1]  # This should be the PPO
         
-        # Convert to string format for tramo lookup
-        node_str1 = f"({second_last_point[0]}, {second_last_point[1]}, {second_last_point[2]})"
-        node_str2 = f"({last_point[0]}, {last_point[1]}, {last_point[2]})"
+        # Convert to string format for tramo lookup (use 3 decimal places to match tramo map format)
+        node_str1 = f"({second_last_point[0]:.3f}, {second_last_point[1]:.3f}, {second_last_point[2]:.3f})"
+        node_str2 = f"({last_point[0]:.3f}, {last_point[1]:.3f}, {last_point[2]:.3f})"
         
         # Create edge key in canonical form (sorted order)
         edge_key = "-".join(sorted([node_str1, node_str2]))
@@ -284,9 +284,9 @@ def run_astar_with_multiple_ppos_forward_path(graph_path, origin, ppos, destinat
             second_last_point = segment_path[-2]
             last_point = segment_path[-1]
             
-            # Convert to string format for tramo lookup
-            node_str1 = f"({second_last_point[0]}, {second_last_point[1]}, {second_last_point[2]})"
-            node_str2 = f"({last_point[0]}, {last_point[1]}, {last_point[2]})"
+            # Convert to string format for tramo lookup (use 3 decimal places to match tramo map format)
+            node_str1 = f"({second_last_point[0]:.3f}, {second_last_point[1]:.3f}, {second_last_point[2]:.3f})"
+            node_str2 = f"({last_point[0]:.3f}, {last_point[1]:.3f}, {last_point[2]:.3f})"
             
             # Create edge key in canonical form (sorted order)
             edge_key = "-".join(sorted([node_str1, node_str2]))

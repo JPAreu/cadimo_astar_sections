@@ -52,9 +52,13 @@ def main():
     print("Testing all functionality from astar_PPO_forbid and test_forward_path with system filtering")
     print("="*90)
     
-    # Test files and coordinates
-    graph_file = 'sample_tagged_graph.json'
-    real_graph_file = 'graph_LVA1.json'
+    # Get the parent directory path for running scripts
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    script_path = os.path.join(parent_dir, 'astar_PPOF_systems.py')
+    
+    # Test files and coordinates (relative to parent directory)
+    graph_file = os.path.join(parent_dir, 'sample_tagged_graph.json')
+    real_graph_file = os.path.join(parent_dir, 'graph_LVA1.json')
     
     # Basic system filtering tests
     print("\n" + "="*60)
@@ -63,7 +67,7 @@ def main():
     
     # Test 1: Cable A - Direct pathfinding within System A
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'direct', 
+        'python3', script_path, 'direct', 
         graph_file, 
         '100', '200', '300', '120', '200', '300', 
         '--cable', 'A'
@@ -71,7 +75,7 @@ def main():
     
     # Test 2: Cable A - Trying to reach System B (should fail)
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'direct', 
+        'python3', script_path, 'direct', 
         graph_file, 
         '100', '200', '300', '150', '200', '300', 
         '--cable', 'A'
@@ -79,7 +83,7 @@ def main():
     
     # Test 3: Cable B - Direct pathfinding within System B
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'direct', 
+        'python3', script_path, 'direct', 
         graph_file, 
         '130', '200', '300', '150', '200', '300', 
         '--cable', 'B'
@@ -87,7 +91,7 @@ def main():
     
     # Test 4: Cable B - Trying to reach System A (should fail)
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'direct', 
+        'python3', script_path, 'direct', 
         graph_file, 
         '130', '200', '300', '100', '200', '300', 
         '--cable', 'B'
@@ -95,7 +99,7 @@ def main():
     
     # Test 5: Cable C - Cross-system pathfinding (should succeed)
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'direct', 
+        'python3', script_path, 'direct', 
         graph_file, 
         '100', '200', '300', '150', '200', '300', 
         '--cable', 'C'
@@ -108,7 +112,7 @@ def main():
     
     # Test 6: Cable A - PPO pathfinding within System A
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'ppo', 
+        'python3', script_path, 'ppo', 
         graph_file, 
         '100', '200', '300', '125', '210', '300', '100', '210', '300', 
         '--cable', 'A'
@@ -116,7 +120,7 @@ def main():
     
     # Test 7: Cable A - PPO with System B waypoint (should fail)
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'ppo', 
+        'python3', script_path, 'ppo', 
         graph_file, 
         '100', '200', '300', '150', '200', '300', '100', '210', '300', 
         '--cable', 'A'
@@ -124,7 +128,7 @@ def main():
     
     # Test 8: Cable C - Cross-system PPO pathfinding
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'ppo', 
+        'python3', script_path, 'ppo', 
         graph_file, 
         '100', '200', '300', '150', '200', '300', '140', '200', '300', 
         '--cable', 'C'
@@ -137,7 +141,7 @@ def main():
     
     # Test 9: Cable A - Multi-PPO pathfinding within System A
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'multi_ppo', 
+        'python3', script_path, 'multi_ppo', 
         graph_file, 
         '100', '200', '300', '100', '210', '300', 
         '--cable', 'A', '--ppo', '120', '200', '300', '--ppo', '125', '210', '300'
@@ -145,7 +149,7 @@ def main():
     
     # Test 10: Cable A - Multi-PPO with System B waypoint (should fail)
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'multi_ppo', 
+        'python3', script_path, 'multi_ppo', 
         graph_file, 
         '100', '200', '300', '100', '210', '300', 
         '--cable', 'A', '--ppo', '120', '200', '300', '--ppo', '150', '200', '300'
@@ -153,7 +157,7 @@ def main():
     
     # Test 11: Cable C - Cross-system Multi-PPO pathfinding
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'multi_ppo', 
+        'python3', script_path, 'multi_ppo', 
         graph_file, 
         '100', '200', '300', '150', '210', '300', 
         '--cable', 'C', '--ppo', '125', '210', '300', '--ppo', '140', '200', '300'
@@ -167,7 +171,7 @@ def main():
         
         # Test 12: Cable C - Forward path with real graph (P21 > P20 > P17)
         run_command([
-            'python3', 'astar_PPOF_systems.py', 'forward_path', 
+            'python3', script_path, 'forward_path', 
             real_graph_file, 
             '139.232', '27.373', '152.313',    # P21 origin
             '139.683', '26.922', '152.313',    # P20 PPO
@@ -177,7 +181,7 @@ def main():
         
         # Test 13: Cable A - Forward path (should work if all points in System A)
         run_command([
-            'python3', 'astar_PPOF_systems.py', 'forward_path', 
+            'python3', script_path, 'forward_path', 
             real_graph_file, 
             '139.232', '27.373', '152.313',    # P21 origin
             '139.683', '26.922', '152.313',    # P20 PPO
@@ -192,7 +196,7 @@ def main():
     
     # Test 14: Invalid cable type
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'direct', 
+        'python3', script_path, 'direct', 
         graph_file, 
         '100', '200', '300', '120', '200', '300', 
         '--cable', 'X'
@@ -200,7 +204,7 @@ def main():
     
     # Test 15: Invalid coordinates
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'direct', 
+        'python3', script_path, 'direct', 
         graph_file, 
         '999', '999', '999', '998', '998', '998', 
         '--cable', 'C'
@@ -208,7 +212,7 @@ def main():
     
     # Test 16: Same origin and destination
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'direct', 
+        'python3', script_path, 'direct', 
         graph_file, 
         '100', '200', '300', '100', '200', '300', 
         '--cable', 'A'
@@ -216,7 +220,7 @@ def main():
     
     # Test 17: PPO same as origin
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'ppo', 
+        'python3', script_path, 'ppo', 
         graph_file, 
         '100', '200', '300', '100', '200', '300', '120', '200', '300', 
         '--cable', 'A'
@@ -224,7 +228,7 @@ def main():
     
     # Test 18: PPO same as destination
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'ppo', 
+        'python3', script_path, 'ppo', 
         graph_file, 
         '100', '200', '300', '120', '200', '300', '120', '200', '300', 
         '--cable', 'A'
@@ -232,7 +236,7 @@ def main():
     
     # Test 19: Multi-PPO with duplicate waypoints
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'multi_ppo', 
+        'python3', script_path, 'multi_ppo', 
         graph_file, 
         '100', '200', '300', '100', '210', '300', 
         '--cable', 'A', '--ppo', '120', '200', '300', '--ppo', '120', '200', '300'
@@ -245,7 +249,7 @@ def main():
     
     # Test 20: Multiple consecutive PPOs within same system
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'multi_ppo', 
+        'python3', script_path, 'multi_ppo', 
         graph_file, 
         '100', '200', '300', '125', '210', '300', 
         '--cable', 'A', 
@@ -256,7 +260,7 @@ def main():
     
     # Test 21: Cross-system routing with multiple waypoints
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'multi_ppo', 
+        'python3', script_path, 'multi_ppo', 
         graph_file, 
         '100', '200', '300', '150', '210', '300', 
         '--cable', 'C', 
@@ -274,7 +278,7 @@ def main():
         
         # Test 22: System filtering with forbidden edges
         run_command([
-            'python3', 'astar_PPOF_systems.py', 'direct', 
+            'python3', script_path, 'direct', 
             real_graph_file, 
             '152.290', '17.883', '160.124',    # P2 origin
             '139.232', '28.845', '139.993',    # P1 destination
@@ -283,7 +287,7 @@ def main():
         
         # Test 23: PPO with real graph coordinates
         run_command([
-            'python3', 'astar_PPOF_systems.py', 'ppo', 
+            'python3', script_path, 'ppo', 
             real_graph_file, 
             '152.290', '17.883', '160.124',    # P2 origin
             '143.382', '25.145', '160.703',    # P5 PPO
@@ -298,24 +302,24 @@ def main():
     
     # Test 24: Help display
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'help'
+        'python3', script_path, 'help'
     ], "Display help and usage information")
     
     # Test 25: Invalid command
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'invalid_command', 
+        'python3', script_path, 'invalid_command', 
         graph_file, '100', '200', '300', '120', '200', '300', '--cable', 'A'
     ], "Invalid command (should show usage)", expect_success=False)
     
     # Test 26: Missing arguments
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'direct', 
+        'python3', script_path, 'direct', 
         graph_file, '100', '200', '300'
     ], "Missing required arguments (should show usage)", expect_success=False)
     
     # Test 27: Missing cable argument
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'direct', 
+        'python3', script_path, 'direct', 
         graph_file, '100', '200', '300', '120', '200', '300'
     ], "Missing --cable argument (should show usage)", expect_success=False)
     
@@ -326,7 +330,7 @@ def main():
     
     # Test 28: Non-existent graph file
     run_command([
-        'python3', 'astar_PPOF_systems.py', 'direct', 
+        'python3', script_path, 'direct', 
         'nonexistent_graph.json', 
         '100', '200', '300', '120', '200', '300', 
         '--cable', 'A'
@@ -336,7 +340,7 @@ def main():
     if os.path.exists(real_graph_file):
         # Try to use Cable A with coordinates that might be in different systems
         run_command([
-            'python3', 'astar_PPOF_systems.py', 'direct', 
+            'python3', script_path, 'direct', 
             real_graph_file, 
             '139.232', '27.373', '152.313',    # P21
             '139.608', '25.145', '160.703',    # P19

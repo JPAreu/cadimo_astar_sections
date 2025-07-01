@@ -602,7 +602,7 @@ def run_tests():
     import os
     import sys
     
-    test_folder = "test_astar_spatial_optimized"
+    test_folder = "tests"
     
     # Check if test folder exists
     if not os.path.exists(test_folder):

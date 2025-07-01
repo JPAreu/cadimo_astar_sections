@@ -106,10 +106,86 @@ def validate_endpoints(graph_json: Dict[str, Any], src: str, dst: str, allowed_s
     if dst_sys is None:
         raise ValueError(f"Destination node missing 'sys' tag: {dst}")
     
+    # Enhanced error messages with system information
+    endpoint_systems = {src_sys, dst_sys}
+    
+    # Check if source is in forbidden system
     if src_sys not in allowed_systems:
-        raise ValueError(f"Source node in forbidden system '{src_sys}': {src}")
+        compatible_cables = [cable for cable, systems in ALLOWED.items() if src_sys in systems]
+        raise ValueError(f"Source node in forbidden system '{src_sys}' (allowed: {sorted(allowed_systems)}): {src}\n"
+                        f"💡 Source system '{src_sys}' is compatible with cable types: {compatible_cables}")
+    
+    # Check if destination is in forbidden system  
     if dst_sys not in allowed_systems:
-        raise ValueError(f"Destination node in forbidden system '{dst_sys}': {dst}")
+        compatible_cables = [cable for cable, systems in ALLOWED.items() if dst_sys in systems]
+        raise ValueError(f"Destination node in forbidden system '{dst_sys}' (allowed: {sorted(allowed_systems)}): {dst}\n"
+                        f"💡 Destination system '{dst_sys}' is compatible with cable types: {compatible_cables}")
+    
+    # Check if endpoints are in different systems and suggest cable C if needed
+    if src_sys != dst_sys:
+        cross_system_cables = [cable for cable, systems in ALLOWED.items() if endpoint_systems.issubset(systems)]
+        if not cross_system_cables:
+            raise ValueError(f"Endpoints in different systems - Source: '{src_sys}', Destination: '{dst_sys}'\n"
+                           f"❌ No cable type can connect these systems. Available systems per cable:\n"
+                           f"   Cable A: {sorted(ALLOWED['A'])}\n"
+                           f"   Cable B: {sorted(ALLOWED['B'])}\n" 
+                           f"   Cable C: {sorted(ALLOWED['C'])}")
+        elif len(allowed_systems) == 1 and not endpoint_systems.issubset(allowed_systems):
+            raise ValueError(f"Endpoints in different systems - Source: '{src_sys}', Destination: '{dst_sys}'\n"
+                           f"❌ Current cable only allows system(s): {sorted(allowed_systems)}\n"
+                           f"💡 Use cable type(s) {cross_system_cables} to connect these systems")
+
+# ------------------------------------------------------------------------
+def check_endpoints_across_graphs(src_coord: Tuple[float, float, float], dst_coord: Tuple[float, float, float], 
+                                 graph_files: List[str]) -> Dict[str, Any]:
+    """
+    Check which systems the endpoints belong to across multiple graph files.
+    
+    Args:
+        src_coord: Source coordinates
+        dst_coord: Destination coordinates
+        graph_files: List of graph file paths to check
+        
+    Returns:
+        Dictionary with endpoint system information
+    """
+    src_key = coord_to_key(src_coord)
+    dst_key = coord_to_key(dst_coord)
+    
+    endpoint_info = {
+        "source": {"coord": src_coord, "key": src_key, "found_in": []},
+        "destination": {"coord": dst_coord, "key": dst_key, "found_in": []},
+        "compatible_cables": []
+    }
+    
+    # Check each graph file
+    for graph_file in graph_files:
+        try:
+            graph_data = load_tagged_graph(graph_file)
+            
+            # Check source
+            if src_key in graph_data["nodes"]:
+                src_sys = graph_data["nodes"][src_key].get("sys")
+                endpoint_info["source"]["found_in"].append({"file": graph_file, "system": src_sys})
+            
+            # Check destination
+            if dst_key in graph_data["nodes"]:
+                dst_sys = graph_data["nodes"][dst_key].get("sys")
+                endpoint_info["destination"]["found_in"].append({"file": graph_file, "system": dst_sys})
+                
+        except (FileNotFoundError, ValueError):
+            continue  # Skip invalid/missing files
+    
+    # Determine compatible cables
+    src_systems = {info["system"] for info in endpoint_info["source"]["found_in"]}
+    dst_systems = {info["system"] for info in endpoint_info["destination"]["found_in"]}
+    all_systems = src_systems.union(dst_systems)
+    
+    for cable, allowed_sys in ALLOWED.items():
+        if all_systems.issubset(allowed_sys):
+            endpoint_info["compatible_cables"].append(cable)
+    
+    return endpoint_info
 
 # ------------------------------------------------------------------------
 def get_cable_info(cable_type: str) -> Dict[str, Any]:
@@ -140,9 +216,9 @@ def coord_to_key(coord: Tuple[float, float, float]) -> str:
         coord: Coordinate tuple (x, y, z)
         
     Returns:
-        Canonical string representation "(x, y, z)"
+        Canonical string representation "(x, y, z)" with 3 decimal places
     """
-    return f"({coord[0]}, {coord[1]}, {coord[2]})"
+    return f"({coord[0]:.3f}, {coord[1]:.3f}, {coord[2]:.3f})"
 
 # ------------------------------------------------------------------------
 def key_to_coord(key: str) -> Tuple[float, float, float]:
